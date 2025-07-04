@@ -4,32 +4,49 @@ const { chromium } = require('playwright');
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
 
-  // Set your desired route
   const from = 'JFK';
-  const to = 'LAX';
-  const date = '2025-09-10';
+  const to = 'SCL';
+  const departureDate = '2025-12-15';
+  const returnDate = '2026-01-21';
 
-  await page.goto('https://www.delta.com');
+  await page.goto('https://www.delta.com', { waitUntil: 'networkidle' });
 
-  // Navigate to book page
-  await page.click('text=Book');
-  await page.click('text=Shop with Miles'); // This sometimes needs checking — could be a checkbox
+  // Fill departure airport
+  await page.fill('input[id="fromAirportName"]', from);
 
-  // Fill search form
-  await page.fill('input[name="fromAirport"]', from);
-  await page.fill('input[name="toAirport"]', to);
+  // Fill destination airport
+  await page.fill('input[id="toAirportName"]', to);
 
-  await page.click('input[name="departureDate"]');
-  await page.fill('input[name="departureDate"]', date);
+  // Set trip type to round trip (default is usually round trip)
+  await page.click('label[for="roundTrip"]');
 
-  await page.click('button:has-text("Search")');
+  // Fill departure date
+  await page.fill('input[id="departureDate"]', departureDate);
 
+  // Fill return date
+  await page.fill('input[id="returnDate"]', returnDate);
+
+  // Check "Shop with Miles" checkbox (label has "Shop with Miles")
+  const milesCheckbox = page.locator('input[type="checkbox"][aria-label*="Shop with Miles"]');
+  if (!(await milesCheckbox.isChecked())) {
+    await milesCheckbox.check();
+  }
+
+  // Click the search button
+  await page.click('button[aria-label="Find Flights"]');
+
+  // Wait for results page to load
   await page.waitForLoadState('networkidle');
 
-  // Get the lowest award price
-  const awardPrice = await page.textContent('selector-for-award-price'); // <- Update this
+  // Wait and grab the lowest award miles price from results
+  // Note: You must inspect Delta's results page to find the correct selector for the award price.
+  // Here's a placeholder selector example:
+  const awardPriceSelector = 'span[data-testid="awardMilesPrice"]';
 
-  console.log(`Award flight from ${from} to ${to} on ${date}: ${awardPrice}`);
+  await page.waitForSelector(awardPriceSelector, { timeout: 30000 });
+  const awardPrice = await page.textContent(awardPriceSelector);
+
+  console.log(`Award flight from ${from} to ${to}, departing ${departureDate} returning ${returnDate}: ${awardPrice}`);
 
   await browser.close();
 })();
